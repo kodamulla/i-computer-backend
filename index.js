@@ -3,8 +3,11 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import userRouter from './routes/userRouter.js';
 import productRouter from './routes/productRouter.js';
+import cors from 'cors';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const mongoURL = "mongodb+srv://admin:1234@cluster0.741npn7.mongodb.net/?appName=Cluster0"
+const mongoURL = process.env.MONGO_URL;
 
 
 mongoose.connect(mongoURL).then(() => {
@@ -12,6 +15,7 @@ mongoose.connect(mongoURL).then(() => {
 })
 
 const app = express();
+app.use(cors());
 
 app.use(express.json());
 
@@ -26,7 +30,7 @@ app.use(
 
             console.log(token);
 
-            jwt.verify(token, "secretKey96$2025", 
+            jwt.verify(token, process.env.JWT_SECRET, 
                 (error,content)=>{
                     if(content == null){
                         console.log("Invalid token");
@@ -58,8 +62,8 @@ app.use(
 
 
 
-app.use("/users",userRouter);
-app.use("/products",productRouter);
+app.use("/api/users",userRouter);
+app.use("/api/products",productRouter);
 
 
 app.listen(3000,
