@@ -33,14 +33,16 @@ const productsschema = new mongoose.Schema(
             type: [String],
             required : true,
         },
-        category : {
+        
+        model : {
             type: String,
-            required: true,
+            required: false,
+            default: "Standard",
         },
         brand : {
             type: String,
             required: true,
-            default: "No brand" ,
+            default: "Generic",
         },
         stock : {
             type: Number,
@@ -51,7 +53,11 @@ const productsschema = new mongoose.Schema(
             type: Boolean,
             required: true,
             default: true,
-        } 
+        } ,
+        labelPrice : {
+        type: Number,
+        required: false,
+      },
     }
 );
 const Product = mongoose.model("Product", productsschema);

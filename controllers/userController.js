@@ -1,51 +1,48 @@
 import User from '../models/User.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+dotenv.config();
 
-export function createuser(req,res){
-
+export function createuser(req, res) {
     const data = req.body;
-    const hashedPassword = bcrypt.hashSync(data.password,10);
+    const hashedPassword = bcrypt.hashSync(data.password, 10);
 
-   
-
-     const user = new User(
-     {
+    const user = new User({
         email: data.email,
         password: hashedPassword,
         firstName: data.firstName,
         lastName: data.lastName,
-        role: data.role,
+        role: data.role, 
+    });
 
-     });
-      user.save().then(
-         () => {
-        res.json({
-             message: "User created successfully"
-          });
-      })
+    user.save()
+        .then(() => {
+            res.json({
+                message: "User created successfully"
+            });
+        })
+        .catch((err) => {
+            res.status(500).json({ error: err.message });
+        });
 }
 
-export function loginUser(req,res){
+export function loginUser(req, res) {
     const email = req.body.email;
     const password = req.body.password;
-    
-    User.find({email: email}).then(
-        (users) => {
-            if(users[0] == null){
-                res.json({
+
+    User.findOne({ email: email }).then( 
+        (user) => {
+            if (user == null) {
+                return res.status(404).json({
                     message: "User not found"
                 });
-            }else{
-               const user = users[0];
-               
-               
-               
+            }
 
-                const isPasswordCorrect = bcrypt.compareSync(password, user.password);
+            const isPasswordCorrect = bcrypt.compareSync(password, user.password);
 
-                if(isPasswordCorrect){
-                const payload ={
+            if (isPasswordCorrect) {
+                const payload = {
                     email: user.email,
                     firstName: user.firstName,
                     lastName: user.lastName,
@@ -54,35 +51,30 @@ export function loginUser(req,res){
                     image: user.image
                 };
 
-                const token = jwt.sign(payload, process.env.JWT_SECRET,
-                   
-                )
+                const token = jwt.sign(payload, process.env.JWT_SECRET);
+
+                
                 res.json({
                     message: "Login successful",
-                    token: token
+                    token: token,
+                    role: user.role 
                 });
-               }else{
+            } else {
                 res.status(401).json({
                     message: "Invalid password"
                 });
-
-               
-               }
             }
         }
-    )
-        
-    
-
+    ).catch(err => {
+        res.status(500).json({ message: "Internal Server Error" });
+    });
 }
 
-export function isAdmin(req){
-    if(req.user == null ){
-        
+export function isAdmin(req) {
+    if (req.user == null) {
         return false;
     }
-    if(req.user.role !== "admin"){
-        
+    if (req.user.role !== "admin") {
         return false;
     }
     return true;

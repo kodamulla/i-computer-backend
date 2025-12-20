@@ -9,7 +9,7 @@ export function createProduct(req,res){
         });
         return;
     }
-    const product = new Products(req.body);{
+    const product = new Products(req.body);
         product.save().then(
             () => {
                 res.json({
@@ -20,12 +20,12 @@ export function createProduct(req,res){
             (error) => {
                 res.status(500).json({
                     message: "Error creating product",
-                    error: error
+                    error: error.message
                 });
             }
-        )
+        );
     }
-}
+
 
 export function getAllProducts(req,res){
 
@@ -102,7 +102,7 @@ export function getProductByID(req,res){
     const productID = req.params.productID;
     Products.findOne({productID: productID}).then(
         (product) => {
-            if(product != null){
+            if(product == null){
             res.status(404).json({
                 message: "Product not found"
             });
