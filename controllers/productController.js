@@ -43,7 +43,7 @@ export function getAllProducts(req,res){
             });
         }
     );
-
+    
     }else{
 
     Products.find({isAvailable: true}).then(
