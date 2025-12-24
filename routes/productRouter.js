@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProduct, deleteProduct, getAllProducts, updateProduct } from '../controllers/productController.js';
+import { createProduct, deleteProduct, getAllProducts, updateProduct,getProductByID } from '../controllers/productController.js';
 
 
 const productRouter = express.Router();
@@ -13,7 +13,7 @@ productRouter.get("trending",(req,res)=>{
     });
 });
 productRouter.post("/", createProduct);
-productRouter.get("/:productID", getAllProducts);
+productRouter.get("/:productID", getProductByID);
 productRouter.delete("/:productID",deleteProduct);
 productRouter.put("/:productID",updateProduct);
 
