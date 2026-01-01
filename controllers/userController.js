@@ -3,8 +3,21 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import nodemailer from 'nodemailer';
+import Otp from '../models/Otp.js';
+
 
 dotenv.config();
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+        user: 'hansikavithma@gmail.com',
+        pass: process.env.GMAIL_APP_PASSWORD
+    }
+})
 
 export function createuser(req, res) {
     const data = req.body;
@@ -39,6 +52,15 @@ export function loginUser(req, res) {
                 return res.status(404).json({
                     message: "User not found"
                 });
+                
+            }else{
+                const user = user[0];
+                if(user.isBlocked){
+                    return res.status(403).json({
+                        message: "User is blocked"
+                    });
+                    return;
+                }
             }
 
             const isPasswordCorrect = bcrypt.compareSync(password, user.password);
@@ -131,6 +153,11 @@ export async function googleLogin(req, res) {
                 });
                 
             }else{
+                if(user.isBlocked){
+                    return res.status(403).json({
+                        message: "User is blocked"
+                    });
+                }
                 const payload = {
                     email: user.email,
                     firstName: user.firstName,
@@ -154,5 +181,139 @@ export async function googleLogin(req, res) {
         res.status(500).json({ 
             message: "Google login failed" ,
             error: error.message});
+    }
+}
+
+export async function validateOTPAndUpdatePassword( req, res) {
+    try{
+    const otp = req.body.otp;
+    const newPassword = req.body.newPassword;
+    const email = req.body.email;
+
+    const otpRecord = await Otp.findOne({ email: email, otp: otp });
+    if (otpRecord == null) {
+        return res.status(400).json({
+            message: "Invalid OTP"
+        });
+        return;
+    }
+    await Otp.deleteMany({ email: email });
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    await User.updateOne(
+        { email: email },
+        { $set: { password: hashedPassword , isEmailVerified: true} }
+    );
+    res.json({
+        message: "Password updated successfully"
+    });
+    
+
+}catch(error){
+    return res.status(500).json({
+        message: "Error updating password",
+        error: error.message
+    });
+}
+}
+
+export async function sendOTP(req,res){
+    try{
+
+    const email = req.params.email;
+
+    const user = await User.findOne({
+        email: email
+    });
+    if(user == null){
+        return res.status(404).json({
+            message: "User not found"
+        });
+        return;
+    }
+    await Otp.deleteMany({
+        email: email
+    });
+
+    // Generate a 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const newOtp = new Otp({
+        email: email,
+        otp: otpCode
+    });
+    await newOtp.save();
+
+    const message ={
+        from:"hansikavithma@gmail.com",
+        to: email,
+        subject: "Your OTP Code",
+        text: "Your OTP code is" + otpCode
+    }
+    transporter.sendMail(message, (err, info) => {
+        if(err){
+            res.status(500).json({
+                message: "Failed to send OTP",
+                error: err.message
+            });
+        }else{
+            res.json({
+                message: "OTP sent successfully"
+            });
+        }
+    });
+}catch(error){
+    res.status(500).json({
+        message: "Error sending OTP",
+        error: error.message
+    });
+}
+}
+
+export async function getAllUsers(req, res) {
+    if(!isAdmin(req)){
+        res.status(401).json({
+            message: "Unauthorized"
+        });
+        return;
+    }
+    try {
+        const users = await User.find();
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({
+            message: "Error fetching users",
+            error: error.message
+        });
+    }
+}
+
+export async function updateUsersStatus(req, res) {
+    if(!isAdmin(req)){
+        res.status(401).json({
+            message: "Unauthorized"
+        });
+        return;
+    }
+    const email = req.params.email;
+    if(!req.user.email === email){
+        res.status(400).json({
+            message: "Admin cannot change their own status"
+        });
+        return;
+    }
+    const isBlocked = req.body.isBlocked;
+    try {
+        await User.updateOne(
+            { email: email },
+            { $set: {isBlocked: isBlocked} }
+        );
+        res.json({
+            message: "User status updated successfully"
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Error updating user status",
+            error: error.message
+        });
     }
 }
