@@ -48,19 +48,23 @@ export function loginUser(req, res) {
 
     User.findOne({ email: email }).then( 
         (user) => {
-            if (user == null) {
+            if (!user) {
                 return res.status(404).json({
                     message: "User not found"
                 });
                 
             }else{
-                const user = user[0];
+                
                 if(user.isBlocked){
                     return res.status(403).json({
                         message: "User is blocked"
                     });
-                    return;
+                   
                 }
+            }
+
+            if (!user.password) {
+                return res.status(500).json({ message: "User password not set in database" });
             }
 
             const isPasswordCorrect = bcrypt.compareSync(password, user.password);
@@ -71,9 +75,14 @@ export function loginUser(req, res) {
                     firstName: user.firstName,
                     lastName: user.lastName,
                     role: user.role,
-                    isEmailVerified: user.isEmailverrified,
+                    isEmailverified: user.isEmailverified || false,
                     image: user.image
                 };
+
+                if (!process.env.JWT_SECRET) {
+                    console.error("CRITICAL: JWT_SECRET is missing!");
+                    return res.status(500).json({ message: "Server configuration error" });
+                }
 
                 const token = jwt.sign(payload, process.env.JWT_SECRET);
 
@@ -84,12 +93,14 @@ export function loginUser(req, res) {
                     role: user.role 
                 });
             } else {
+                console.error("Invalid password attempt for user:", email);
                 res.status(401).json({
                     message: "Invalid password"
                 });
             }
         }
     ).catch(err => {
+        console.error("LOGIN ERROR:", err);
         res.status(500).json({ message: "Internal Server Error" });
     });
 }
@@ -109,7 +120,7 @@ export function getUser(req, res) {
         return res.status(401).json({
             message: "Unauthorized"
         })
-        return
+        
     }
     res.json(req.user);
 }
@@ -140,7 +151,7 @@ export async function googleLogin(req, res) {
                     firstName: newUser.firstName,
                     lastName: newUser.lastName,
                     role: newUser.role,
-                    isEmailVerified: true,
+                    isEmailverified: true,
                     image: newUser.image
                 };
                 const token = jwt.sign(payload, process.env.JWT_SECRET);
@@ -163,7 +174,7 @@ export async function googleLogin(req, res) {
                     firstName: user.firstName,
                     lastName: user.lastName,
                     role: user.role,
-                    isEmailVerified: user.isEmailverrified,
+                    isEmailverified: user.isEmailverified,
                     image: user.image
                 };
 
@@ -201,7 +212,7 @@ export async function validateOTPAndUpdatePassword( req, res) {
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
     await User.updateOne(
         { email: email },
-        { $set: { password: hashedPassword , isEmailVerified: true} }
+        { $set: { password: hashedPassword , isEmailverified: true} }
     );
     res.json({
         message: "Password updated successfully"
